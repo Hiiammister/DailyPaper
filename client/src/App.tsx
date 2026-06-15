@@ -17,6 +17,8 @@ import Onboarding from "./pages/Onboarding.tsx";
 import Quiz from "./pages/Quiz.tsx";
 import Result from "./pages/Result.tsx";
 import History from "./pages/History.tsx";
+import Topics from "./pages/Topics.tsx";
+import Resources from "./pages/Resources.tsx";
 import LoadingSpinner from "./components/LoadingSpinner.tsx";
 
 function AuthedApp() {
@@ -40,6 +42,8 @@ function AuthedApp() {
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/result" element={<Result />} />
           <Route path="/history" element={<History />} />
+          <Route path="/topics" element={<Topics />} />
+          <Route path="/resources" element={<Resources />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

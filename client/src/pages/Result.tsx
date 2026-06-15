@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { Trophy, BookOpen, ArrowLeft, History } from "lucide-react";
 import type { QuizResult } from "../lib/api.ts";
 import StreakBadge from "../components/StreakBadge.tsx";
 
@@ -17,15 +18,19 @@ export default function Result() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-12">
-      <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-        {/* Emoji */}
-        <div className="text-6xl mb-4">{passed ? "🎉" : "📖"}</div>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-8 text-center">
+        {/* Icon */}
+        <div className="flex justify-center mb-4">
+          {passed
+            ? <Trophy className="w-16 h-16 text-yellow-400" />
+            : <BookOpen className="w-16 h-16 text-brand-400" />}
+        </div>
 
         {/* Result */}
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
           {passed ? "Great job!" : "Keep reading!"}
         </h1>
-        <p className="text-gray-500 mb-6">
+        <p className="text-gray-500 dark:text-gray-400 mb-6">
           {passed
             ? "You passed the quiz and kept your streak alive."
             : "You need 3/5 to pass. Try again tomorrow!"}
@@ -34,13 +39,13 @@ export default function Result() {
         {/* Score */}
         <div className="flex items-center justify-center gap-6 mb-8">
           <div>
-            <p className="text-5xl font-bold text-gray-900">
+            <p className="text-5xl font-bold text-gray-900 dark:text-gray-100">
               {score}
-              <span className="text-2xl text-gray-400">/{total}</span>
+              <span className="text-2xl text-gray-400 dark:text-gray-500">/{total}</span>
             </p>
-            <p className="text-sm text-gray-500 mt-1">{percentage}% correct</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{percentage}% correct</p>
           </div>
-          <div className="w-px h-12 bg-gray-200" />
+          <div className="w-px h-12 bg-gray-200 dark:bg-gray-700" />
           <div className="flex flex-col items-center">
             <StreakBadge streak={newStreak} size="lg" />
           </div>
@@ -52,7 +57,7 @@ export default function Result() {
             <div
               key={i}
               className={`h-3 flex-1 rounded-full ${
-                i < score ? "bg-green-400" : "bg-gray-200"
+                i < score ? "bg-green-400" : "bg-gray-200 dark:bg-gray-700"
               }`}
             />
           ))}
@@ -62,15 +67,15 @@ export default function Result() {
         <div className="flex flex-col gap-3">
           <button
             onClick={() => navigate("/history")}
-            className="w-full py-3 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
-            View Paper History
+            <History className="w-4 h-4" /> View Paper History
           </button>
           <button
             onClick={() => navigate("/")}
-            className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors"
           >
-            Back to Home
+            <ArrowLeft className="w-4 h-4" /> Back to Home
           </button>
         </div>
       </div>

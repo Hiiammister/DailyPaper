@@ -64,11 +64,11 @@ export default function Onboarding() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
       <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
           What do you want to learn?
         </h1>
         <p className="text-gray-500">
-          Pick at least one topic. We'll surface one paper per day from these areas.
+          <span className="text-gray-500 dark:text-gray-400">Pick at least one topic. We'll surface one paper per day from these areas.</span>
         </p>
       </div>
 
@@ -86,7 +86,7 @@ export default function Onboarding() {
               className={`px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
                 active
                   ? "border-brand-500 bg-brand-50 text-brand-700"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
               }`}
             >
               {topic.name}

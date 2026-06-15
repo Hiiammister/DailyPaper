@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { ChevronLeft, ChevronRight, CheckSquare } from "lucide-react";
 import { api, type QuizQuestion } from "../lib/api.ts";
 import LoadingSpinner from "../components/LoadingSpinner.tsx";
 
@@ -97,11 +98,11 @@ export default function Quiz() {
     <div className="max-w-2xl mx-auto px-4 py-8">
       {/* Progress */}
       <div className="mb-8">
-        <div className="flex justify-between text-sm text-gray-500 mb-2">
+        <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-2">
           <span>Question {current + 1} of {questions.length}</span>
           <span>{answers.filter((a) => a !== null).length} answered</span>
         </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-brand-500 rounded-full transition-all duration-300"
             style={{ width: `${((current + 1) / questions.length) * 100}%` }}
@@ -118,7 +119,7 @@ export default function Quiz() {
                   ? "bg-brand-500 w-5"
                   : answers[i] !== null
                   ? "bg-brand-300"
-                  : "bg-gray-200"
+                  : "bg-gray-200 dark:bg-gray-700"
               }`}
             />
           ))}
@@ -126,8 +127,8 @@ export default function Quiz() {
       </div>
 
       {/* Question */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
-        <p className="text-lg font-semibold text-gray-900 leading-snug mb-6">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 mb-6">
+        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug mb-6">
           {q.question}
         </p>
         <div className="space-y-3">
@@ -138,10 +139,10 @@ export default function Quiz() {
               className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm transition-all ${
                 answered === i
                   ? "border-brand-500 bg-brand-50 text-brand-800 font-medium"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
               }`}
             >
-              <span className="inline-block w-6 font-medium text-gray-400">
+              <span className="inline-block w-6 font-medium text-gray-400 dark:text-gray-500 shrink-0">
                 {String.fromCharCode(65 + i)}.
               </span>
               {option}
@@ -155,25 +156,26 @@ export default function Quiz() {
         <button
           onClick={goPrev}
           disabled={current === 0}
-          className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-1.5 px-5 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
-          ← Back
+          <ChevronLeft className="w-4 h-4" /> Back
         </button>
 
         {current < questions.length - 1 ? (
           <button
             onClick={goNext}
             disabled={answered === null}
-            className="flex-1 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
           >
-            Next →
+            Next <ChevronRight className="w-4 h-4" />
           </button>
         ) : (
           <button
             onClick={handleSubmit}
             disabled={!allAnswered || submitting}
-            className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
           >
+            <CheckSquare className="w-4 h-4" />
             {submitting ? "Submitting…" : "Submit Answers"}
           </button>
         )}

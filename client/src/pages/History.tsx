@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/clerk-react";
+import { Inbox, ExternalLink, Check, X } from "lucide-react";
 import { api, type DailyPaperRecord } from "../lib/api.ts";
 import LoadingSpinner from "../components/LoadingSpinner.tsx";
 
 function ScoreBadge({ score }: { score: number | null }) {
   if (score === null) {
     return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
         No quiz
       </span>
     );
@@ -14,11 +15,11 @@ function ScoreBadge({ score }: { score: number | null }) {
   const passed = score >= 3;
   return (
     <span
-      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-        passed ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+      className={`inline-flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium ${
+        passed ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400" : "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400"
       }`}
     >
-      {score}/5 {passed ? "✓" : "✗"}
+      {score}/5 {passed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
     </span>
   );
 }
@@ -55,13 +56,13 @@ export default function History() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Paper History</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Paper History</h1>
 
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
       {history.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">📭</p>
+        <div className="text-center py-16 text-gray-400 dark:text-gray-500">
+          <Inbox className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>No papers read yet. Start with today's paper!</p>
         </div>
       ) : (
@@ -69,11 +70,11 @@ export default function History() {
           {history.map((record) => (
             <div
               key={record.id}
-              className="bg-white rounded-xl border border-gray-200 p-4 flex items-start gap-4"
+              className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 flex items-start gap-4"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
                     {new Date(record.date).toLocaleDateString("en-US", {
                       weekday: "short",
                       month: "short",
@@ -82,10 +83,10 @@ export default function History() {
                   </p>
                   <ScoreBadge score={record.score} />
                 </div>
-                <p className="text-sm font-medium text-gray-900 leading-snug truncate">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-snug truncate">
                   {record.paper.title}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
                   {record.paper.authors.slice(0, 2).join(", ")}
                   {record.paper.authors.length > 2 && " et al."}
                 </p>
@@ -94,9 +95,9 @@ export default function History() {
                 href={record.paper.arxivUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-brand-600 hover:underline whitespace-nowrap mt-0.5"
+                className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline whitespace-nowrap mt-0.5"
               >
-                arXiv ↗
+                arXiv <ExternalLink className="w-3 h-3" />
               </a>
             </div>
           ))}
