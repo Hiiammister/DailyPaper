@@ -7,16 +7,33 @@ A streak-based research paper reading app for CS students. Every day you get one
 1. Sign up and pick topics you care about (Computer Science, Math, Physics, Biology, and more)
 2. Each day DailyPaper picks a fresh arXiv paper from one of your topics
 3. Read the AI-generated summary + open the full paper on arXiv
-4. Click "I'm Done Reading" and take a 5-question quiz
-5. Score ≥ 3/5 to extend your streak
+4. Take notes and ask your local AI about anything in the paper
+5. Click "I'm Done Reading" and take a 5-question quiz
+6. Score ≥ 3/5 to extend your streak
 
 Papers refresh at local midnight. You won't see the same paper twice.
+
+## Features
+
+### Notes (terminal editor)
+Switch to the **Notes** tab while reading to jot down thoughts without leaving the app. The editor has line numbers, auto-save (800 ms debounce), `Ctrl+S` to save immediately, and a VS Code-style status bar. Notes persist to `localStorage` keyed per paper.
+
+**Images** — add screenshots or diagrams three ways: click the `image` button, paste from clipboard, or drag-and-drop onto the editor. Images are stored as base64 and shown as thumbnails below the editor. Click a thumbnail to insert a markdown reference at your cursor. **Export** downloads a self-contained `.md` file with images embedded as data URLs.
+
+### Ask AI (local Llama 2 via Ollama)
+Click **Ask AI** to open a side panel powered by your local [Ollama](https://ollama.com) instance. The paper title, authors, and summary are injected as a system prompt so every answer is grounded in the current paper — look up terms, ask about methodology, or get a plain-English explanation without leaving the page. Requires Ollama running locally:
+
+```bash
+ollama serve        # start the server
+ollama pull llama2  # first time only
+```
 
 ## Stack
 
 | Layer | Tech |
 |---|---|
 | Frontend | React 18, Vite, TypeScript, Tailwind CSS |
+| Local AI | Ollama (llama2) — optional, for Ask AI panel |
 | Routing | react-router-dom v7 |
 | Auth | Clerk (`@clerk/clerk-react`, `@clerk/backend`) |
 | Backend | Node.js, Express, TypeScript, tsx |
@@ -32,7 +49,7 @@ dailypaper/
 ├── client/                  # React + Vite frontend
 │   └── src/
 │       ├── pages/
-│       │   ├── Home.tsx         # Today's paper + CTA
+│       │   ├── Home.tsx         # Today's paper, Notes editor, Ask AI panel
 │       │   ├── Onboarding.tsx   # First-time topic selection
 │       │   ├── Quiz.tsx         # 5-question quiz
 │       │   ├── Result.tsx       # Score + streak result

@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { BookOpen, CheckCircle, ArrowRight, ExternalLink, Download, GraduationCap, X, FileText, Terminal, Save, ImagePlus, Trash2 } from "lucide-react";
-import { api } from "../lib/api.ts";
+import { BookOpen, CheckCircle, ArrowRight, ExternalLink, Download, GraduationCap, X, FileText, Terminal, Save, ImagePlus, Trash2, Bot, SendHorizontal } from "lucide-react";
+import { api, type Paper } from "../lib/api.ts";
 import { useDaily } from "../hooks/useDaily.ts";
 import LoadingSpinner from "../components/LoadingSpinner.tsx";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface NoteImage {
   id: string;
@@ -242,12 +242,170 @@ function NotesTab({ paperId }: { paperId: string }) {
   );
 }
 
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+function AskAI({ paper, onClose }: { paper: Paper; onClose: () => void }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const systemPrompt = `You are a concise research assistant helping the user understand a paper.
+Title: "${paper.title}"
+Authors: ${paper.authors.slice(0, 3).join(", ")}
+Summary: ${paper.summary}
+Answer questions about the paper, define technical terms, and explain concepts clearly. Keep responses brief and focused.`;
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  async function send() {
+    const query = input.trim();
+    if (!query || streaming) return;
+    setInput("");
+
+    const history: ChatMessage[] = [...messages, { role: "user", content: query }];
+    setMessages([...history, { role: "assistant", content: "" }]);
+    setStreaming(true);
+
+    try {
+      const res = await fetch("http://localhost:11434/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "llama2",
+          stream: true,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...history.map((m) => ({ role: m.role, content: m.content })),
+          ],
+        }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("Ollama unreachable");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        for (const line of decoder.decode(value).split("\n").filter(Boolean)) {
+          try {
+            const data = JSON.parse(line);
+            const token: string = data.message?.content ?? "";
+            if (token) {
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  role: "assistant",
+                  content: updated[updated.length - 1].content + token,
+                };
+                return updated;
+              });
+            }
+          } catch { /* partial chunk */ }
+        }
+      }
+    } catch {
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          role: "assistant",
+          content: "⚠ Could not reach Ollama. Make sure it's running:\n`ollama serve`",
+        };
+        return updated;
+      });
+    } finally {
+      setStreaming(false);
+      inputRef.current?.focus();
+    }
+  }
+
+  return (
+    <div className="font-mono flex flex-col flex-1 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+      {/* Title bar */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full bg-red-400 dark:bg-red-500 cursor-pointer" onClick={onClose} title="Close" />
+          <span className="w-3 h-3 rounded-full bg-yellow-400 dark:bg-yellow-500" />
+          <span className="w-3 h-3 rounded-full bg-green-400 dark:bg-green-500" />
+        </div>
+        <span className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">llama2 · paper context</span>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 bg-gray-50 dark:bg-gray-950">
+        {messages.length === 0 && (
+          <div className="text-xs text-gray-400 dark:text-gray-600 space-y-1 pt-1">
+            <p>{"// Ask anything about this paper"}</p>
+            <p>{"// e.g. 'What does X mean?'"}</p>
+            <p>{"//      'Explain the methodology'"}</p>
+            <p>{"//      'Summarize the key findings'"}</p>
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i} className={msg.role === "user" ? "flex justify-end" : ""}>
+            {msg.role === "user" ? (
+              <span className="inline-block text-xs bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-lg px-3 py-1.5 max-w-[90%]">
+                <span className="text-green-600 dark:text-green-400 mr-1.5">{">"}</span>
+                {msg.content}
+              </span>
+            ) : (
+              <p className="text-xs text-gray-700 dark:text-green-300 leading-relaxed whitespace-pre-wrap">
+                {msg.content}
+                {streaming && i === messages.length - 1 && (
+                  <span className="inline-block w-1.5 h-3 bg-green-500 dark:bg-green-400 ml-0.5 animate-pulse align-middle" />
+                )}
+              </p>
+            )}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 px-3 py-2 flex items-center gap-2">
+        <span className="text-green-600 dark:text-green-400 text-xs shrink-0">{">"}</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          placeholder={streaming ? "generating..." : "ask anything..."}
+          disabled={streaming}
+          className="flex-1 bg-transparent text-xs text-gray-800 dark:text-green-300 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none disabled:opacity-50"
+        />
+        <button
+          onClick={send}
+          disabled={streaming || !input.trim()}
+          className="text-gray-400 hover:text-gray-700 dark:hover:text-green-400 disabled:opacity-30 transition-colors"
+        >
+          <SendHorizontal className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const { daily, loading, error, noTopics } = useDaily();
   const [completing, setCompleting] = useState(false);
   const [activeTab, setActiveTab] = useState<"paper" | "notes">("paper");
+  const [aiOpen, setAiOpen] = useState(false);
   const [tipDismissed, setTipDismissed] = useState(
     () => localStorage.getItem("guide-tip-dismissed") === "true"
   );
@@ -316,14 +474,11 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className={`mx-auto px-4 py-8 transition-all duration-300 ${aiOpen ? "max-w-6xl" : "max-w-3xl"}`}>
       {/* Top bar */}
       <div className="mb-6">
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {(() => {
-            // Prisma returns DATE as "YYYY-MM-DDT00:00:00.000Z" (UTC midnight).
-            // Parsing that directly gives the previous day in negative-offset timezones.
-            // Slice the date part and build a local Date instead.
             const s = (daily.date as string).slice(0, 10);
             const [y, mo, d] = s.split("-").map(Number);
             return new Date(y, mo - 1, d).toLocaleDateString("en-US", {
@@ -357,123 +512,152 @@ export default function Home() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-5 p-1 bg-gray-100 dark:bg-gray-800/60 rounded-xl w-fit">
-        <button
-          onClick={() => setActiveTab("paper")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-            activeTab === "paper"
-              ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          Paper
-        </button>
-        <button
-          onClick={() => setActiveTab("notes")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-            activeTab === "notes"
-              ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
-        >
-          <Terminal className="w-3.5 h-3.5" />
-          Notes
-        </button>
-      </div>
+      {/* Main layout — splits into two columns when AI panel is open */}
+      <div className={aiOpen ? "flex gap-5 items-stretch" : ""}>
 
-      {/* Notes tab */}
-      {activeTab === "notes" && (
-        <div className="mb-6">
-          <NotesTab paperId={daily.paper.id} />
-        </div>
-      )}
+        {/* Left column: tabs + content + CTA */}
+        <div className={aiOpen ? "flex-1 min-w-0" : ""}>
 
-      {/* Paper card */}
-      {activeTab === "paper" && (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden mb-6">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-snug mb-3">
-              {daily.paper.title}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {daily.paper.authors.slice(0, 3).join(", ")}
-              {daily.paper.authors.length > 3 && ` +${daily.paper.authors.length - 3} more`}
-            </p>
-            <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs text-gray-400 dark:text-gray-500">
-                Published{" "}
-                {new Date(daily.paper.publishedAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+          {/* Tabs row */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800/60 rounded-xl">
+              <button
+                onClick={() => setActiveTab("paper")}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === "paper"
+                    ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Paper
+              </button>
+              <button
+                onClick={() => setActiveTab("notes")}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === "notes"
+                    ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}
+              >
+                <Terminal className="w-3.5 h-3.5" />
+                Notes
+              </button>
+            </div>
+
+            {/* Ask AI toggle */}
+            <button
+              onClick={() => setAiOpen((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${
+                aiOpen
+                  ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-900 dark:border-gray-100"
+                  : "text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500"
+              }`}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              Ask AI
+            </button>
+          </div>
+
+          {/* Tab content */}
+          {activeTab === "notes" && (
+            <div className="mb-6">
+              <NotesTab paperId={daily.paper.id} />
+            </div>
+          )}
+
+          {activeTab === "paper" && (
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden mb-6">
+              <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-snug mb-3">
+                  {daily.paper.title}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {daily.paper.authors.slice(0, 3).join(", ")}
+                  {daily.paper.authors.length > 3 && ` +${daily.paper.authors.length - 3} more`}
+                </p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    Published{" "}
+                    {new Date(daily.paper.publishedAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </span>
+                  <span className="text-gray-200 dark:text-gray-700">·</span>
+                  <a
+                    href={daily.paper.arxivUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
+                  >
+                    View on arXiv <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <span className="text-gray-200 dark:text-gray-700">·</span>
+                  <a
+                    href={daily.paper.arxivUrl.replace("/abs/", "/pdf/")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
+                  >
+                    Download PDF <Download className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
+                  Summary
+                </h3>
+                <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300 leading-relaxed space-y-3">
+                  {daily.paper.summary.split("\n\n").map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CTA */}
+          {alreadyDone ? (
+            <div className="flex items-center justify-center gap-3 p-4 bg-green-50 dark:bg-green-950 rounded-xl border border-green-200 dark:border-green-900">
+              <span className="text-green-600 font-medium flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4" /> Completed today — Score: {daily.score}/5
               </span>
-              <span className="text-gray-200 dark:text-gray-700">·</span>
-              <a
-                href={daily.paper.arxivUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
+              <button
+                onClick={() => navigate("/history")}
+                className="text-sm text-brand-600 hover:underline"
               >
-                View on arXiv <ExternalLink className="w-3 h-3" />
-              </a>
-              <span className="text-gray-200 dark:text-gray-700">·</span>
-              <a
-                href={daily.paper.arxivUrl.replace("/abs/", "/pdf/")}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
-                className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
-              >
-                Download PDF <Download className="w-3 h-3" />
-              </a>
+                View history
+              </button>
             </div>
-          </div>
-
-          <div className="p-6">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
-              Summary
-            </h3>
-            <div className="prose prose-sm max-w-none text-gray-700 dark:text-gray-300 leading-relaxed space-y-3">
-              {daily.paper.summary.split("\n\n").map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
-            </div>
-          </div>
+          ) : awaitingQuiz ? (
+            <button
+              onClick={() => navigate("/quiz")}
+              className="w-full py-4 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors text-lg"
+            >
+              Take the Quiz <ArrowRight className="inline w-5 h-5 ml-1" />
+            </button>
+          ) : (
+            <button
+              onClick={handleDone}
+              disabled={completing}
+              className="w-full py-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-lg"
+            >
+              {completing ? "Loading quiz…" : <span className="flex items-center justify-center gap-2">I'm Done Reading <ArrowRight className="w-5 h-5" /></span>}
+            </button>
+          )}
         </div>
-      )}
 
-      {/* CTA */}
-      {alreadyDone ? (
-        <div className="flex items-center justify-center gap-3 p-4 bg-green-50 dark:bg-green-950 rounded-xl border border-green-200 dark:border-green-900">
-          <span className="text-green-600 font-medium flex items-center gap-1.5">
-            <CheckCircle className="w-4 h-4" /> Completed today — Score: {daily.score}/5
-          </span>
-          <button
-            onClick={() => navigate("/history")}
-            className="text-sm text-brand-600 hover:underline"
-          >
-            View history
-          </button>
-        </div>
-      ) : awaitingQuiz ? (
-        <button
-          onClick={() => navigate("/quiz")}
-          className="w-full py-4 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors text-lg"
-        >
-          Take the Quiz <ArrowRight className="inline w-5 h-5 ml-1" />
-        </button>
-      ) : (
-        <button
-          onClick={handleDone}
-          disabled={completing}
-          className="w-full py-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-lg"
-        >
-          {completing ? "Loading quiz…" : <span className="flex items-center justify-center gap-2">I'm Done Reading <ArrowRight className="w-5 h-5" /></span>}
-        </button>
-      )}
+        {/* Right column: AI panel (sticky, full viewport height) */}
+        {aiOpen && (
+          <div className="w-[460px] shrink-0 flex flex-col">
+            <AskAI paper={daily.paper} onClose={() => setAiOpen(false)} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
