@@ -4,6 +4,11 @@ import { prisma } from "../lib/prisma.js";
 import { getOrCreateDailyPaper, updateStreak } from "../services/dailyPaper.js";
 import { z } from "zod";
 
+function localMidnight() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+}
+
 const router = Router();
 router.use(requireAuth);
 
@@ -23,8 +28,7 @@ router.get("/", async (req: AuthRequest, res) => {
 });
 
 router.post("/complete", async (req: AuthRequest, res) => {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = localMidnight();
 
   const daily = await prisma.dailyPaper.findUnique({
     where: { userId_date: { userId: req.userId!, date: today } },
@@ -46,8 +50,7 @@ router.post("/complete", async (req: AuthRequest, res) => {
 });
 
 router.get("/quiz", async (req: AuthRequest, res) => {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = localMidnight();
 
   const daily = await prisma.dailyPaper.findUnique({
     where: { userId_date: { userId: req.userId!, date: today } },
@@ -80,8 +83,7 @@ router.post("/quiz/submit", async (req: AuthRequest, res) => {
     return;
   }
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = localMidnight();
 
   const daily = await prisma.dailyPaper.findUnique({
     where: { userId_date: { userId: req.userId!, date: today } },

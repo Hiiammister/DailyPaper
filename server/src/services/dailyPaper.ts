@@ -2,9 +2,14 @@ import { prisma } from "../lib/prisma.js";
 import { fetchRecentPapers } from "./arxiv.js";
 import { generateSummaryAndQuiz } from "./ai.js";
 
+function localMidnight() {
+  const now = new Date();
+  // Construct at local midnight using numeric args — avoids string-parse UTC issue
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+}
+
 export async function getOrCreateDailyPaper(userId: string) {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = localMidnight();
 
   const existing = await prisma.dailyPaper.findUnique({
     where: { userId_date: { userId, date: today } },
@@ -68,10 +73,8 @@ export async function updateStreak(userId: string, score: number) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("User not found");
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-
-  const yesterday = new Date(today);
+  const today = localMidnight();
+  const yesterday = localMidnight();
   yesterday.setDate(yesterday.getDate() - 1);
 
   let newStreak = user.streak;
