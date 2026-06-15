@@ -37,8 +37,10 @@ export async function getOrCreateDailyPaper(userId: string) {
   if (!paper) {
     const content = await generateSummaryAndQuiz(candidate.title, candidate.abstract);
 
-    paper = await prisma.paper.create({
-      data: {
+    paper = await prisma.paper.upsert({
+      where: { id: candidate.id },
+      update: {},
+      create: {
         id: candidate.id,
         title: candidate.title,
         authors: candidate.authors,
@@ -52,8 +54,10 @@ export async function getOrCreateDailyPaper(userId: string) {
     });
   }
 
-  const dailyPaper = await prisma.dailyPaper.create({
-    data: { userId, paperId: paper.id, date: today },
+  const dailyPaper = await prisma.dailyPaper.upsert({
+    where: { userId_date: { userId, date: today } },
+    update: { paperId: paper.id },
+    create: { userId, paperId: paper.id, date: today },
     include: { paper: true },
   });
 

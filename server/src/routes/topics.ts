@@ -21,11 +21,10 @@ router.put("/me", requireAuth, async (req: AuthRequest, res) => {
   const { topicIds } = parsed.data;
   const userId = req.userId!;
 
-  await prisma.user.upsert({
-    where: { id: userId },
-    update: {},
-    create: { id: userId, email: "" },
-  });
+  const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+  if (!existingUser) {
+    await prisma.user.create({ data: { id: userId, email: `${userId}@placeholder.local` } });
+  }
 
   await prisma.userTopic.deleteMany({ where: { userId } });
   await prisma.userTopic.createMany({
